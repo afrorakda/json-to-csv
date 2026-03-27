@@ -36,7 +36,8 @@
             text-align: center;
         }
 
-        h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 30px; letter-spacing: -1px; }
+        h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; letter-spacing: -1px; }
+        .subtitle { font-size: 0.85rem; color: #666; font-weight: 500; margin-bottom: 30px; }
 
         .input-group { margin-bottom: 25px; text-align: left; position: relative; }
         label { display: block; font-size: 0.75rem; font-weight: 800; margin-bottom: 8px; margin-left: 5px; color: #666; }
@@ -72,7 +73,7 @@
         .convert-btn {
             width: 100%;
             padding: 18px;
-            background: #111;
+            background: #333;
             color: #fff;
             border: none;
             border-radius: var(--radius);
@@ -121,6 +122,8 @@
             background: #fff; width: 85%; max-width: 320px; padding: 30px;
             border-radius: var(--radius); text-align: left; position: relative;
         }
+        .modal-content h3 { margin-top: 0; font-size: 1.2rem; display: flex; align-items: center; gap: 8px; }
+        .modal-content p { font-size: 0.95rem; font-weight: 600; line-height: 1.6; color: #333; margin: 15px 0; }
         .close-x { position: absolute; top: 15px; right: 20px; font-size: 20px; color: #ccc; cursor: pointer; }
     </style>
 </head>
@@ -128,6 +131,7 @@
 
 <div class="container">
     <h1>JSON to CSV</h1>
+    <p class="subtitle">Enter JSON array to convert into CSV format.</p>
 
     <div class="input-group">
         <label>Input JSON (Array)</label>
@@ -164,8 +168,10 @@
 <div id="modal" onclick="this.style.display='none'">
     <div class="modal-content" onclick="event.stopPropagation()">
         <span class="close-x" onclick="document.getElementById('modal').style.display='none'">×</span>
-        <p>🍏 <strong>iPhone:</strong> Share > Add to Home Screen</p>
-        <p>🤖 <strong>Android:</strong> Menu > Add to Home Screen</p>
+        <h3>📱 Install</h3>
+        <p>Add to your home screen.</p>
+        <p>🍏 <strong>iPhone (Safari):</strong><br>Tap Share, then Add to Home Screen.</p>
+        <p>🤖 <strong>Android (Chrome):</strong><br>Tap Menu (⋮), then Add to Home Screen.</p>
     </div>
 </div>
 
@@ -182,16 +188,12 @@
         try {
             const json = JSON.parse(input);
             const array = Array.isArray(json) ? json : [json];
-            
             if (array.length === 0) return;
 
             const headers = Object.keys(array[0]);
             const csvRows = [];
-            
-            // Header row
             csvRows.push(headers.join(','));
 
-            // Data rows
             for (const row of array) {
                 const values = headers.map(header => {
                     const val = row[header] === null || row[header] === undefined ? '' : row[header];
@@ -213,7 +215,6 @@
         copyText.select();
         copyText.setSelectionRange(0, 99999);
         document.execCommand("copy");
-        alert("Copied to clipboard!");
     }
 
     function downloadCSV() {
