@@ -15,9 +15,10 @@
             --accent: #eee;
             --input-bg: #fafafa;
             --radius: 15px;
+            --error: #e63946;
         }
 
-        /* 憲法: 全要素 15px角丸 / iOS Safari対策 */
+        /* 憲法遵守: 角丸15px / iOS Safari対策 */
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
 
         body {
@@ -43,7 +44,6 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 5px;
         }
 
         h1 { font-size: 1.8rem; font-weight: 800; letter-spacing: -1.5px; }
@@ -65,6 +65,7 @@
             padding: 18px;
             border-radius: var(--radius);
             border: 2px solid var(--accent);
+            position: relative;
         }
 
         .label {
@@ -96,10 +97,8 @@
             -webkit-text-fill-color: var(--main) !important;
             opacity: 1 !important;
         }
-        /* 透かしのコントラスト調整 */
         textarea::placeholder { color: #bbb !important; -webkit-text-fill-color: #bbb !important; opacity: 1 !important; }
 
-        /* clr（クリア）ボタン: 入力時のみ表示 */
         .clr-btn {
             position: absolute; top: 10px; right: 10px; width: 28px; height: 28px;
             background: #ccc; color: #fff; border-radius: 50%;
@@ -120,6 +119,15 @@
             -webkit-text-fill-color: #fff;
         }
         .action-btn:active { transform: scale(0.98); }
+
+        #errorMsg {
+            color: var(--error);
+            font-size: 0.75rem;
+            font-weight: 800;
+            margin-top: 5px;
+            display: none;
+            text-align: center;
+        }
 
         .result-area { display: none; flex-direction: column; gap: 15px; }
         .result-area.active { display: flex; }
@@ -163,17 +171,18 @@
         <h1>JSON to CSV</h1>
         <a href="https://afrorakda.github.io/" class="hub-link">🏠 Hub</a>
     </header>
-    <p class="subtitle">Convert JSON array to CSV format.</p>
+    <p class="subtitle">Flatten & convert JSON to Excel-ready CSV.</p>
 
     <div class="input-card">
         <label class="label">Input JSON</label>
         <div class="input-wrapper">
-            <textarea id="jsonInput" placeholder='[{"name":"John","age":30}]' oninput="toggleClr()"></textarea>
+            <textarea id="jsonInput" placeholder='[{"user":{"name":"John"},"age":30}]' oninput="toggleClr()"></textarea>
             <button class="clr-btn" id="clrBtn" onclick="clearInput()">×</button>
         </div>
+        <div id="errorMsg">Invalid JSON format</div>
     </div>
 
-    <button class="action-btn" onclick="convertToCSV()">Convert to CSV</button>
+    <button class="action-btn" onclick="processConversion()">Convert to CSV</button>
 
     <div class="result-area" id="resultArea">
         <div class="input-card">
@@ -191,7 +200,7 @@
         <button class="home-btn" onclick="showModal()">Add to Home Screen</button>
     </div>
 
-    <footer id="dynamicFooter">
+    <footer>
         No login / No tracking / No ads / Browser only<br>
         <a href="https://afrorakda.com/privacy/">Privacy Policy</a> / afrorakda © 2026
     </footer>
@@ -211,11 +220,13 @@
 <script>
     const jsonInput = document.getElementById('jsonInput');
     const clrBtn = document.getElementById('clrBtn');
+    const errorMsg = document.getElementById('errorMsg');
     const resultArea = document.getElementById('resultArea');
     const csvOutput = document.getElementById('csvOutput');
 
     function toggleClr() {
         clrBtn.style.display = jsonInput.value.length > 0 ? 'flex' : 'none';
+        errorMsg.style.display = 'none';
     }
 
     function clearInput() {
@@ -225,33 +236,60 @@
         jsonInput.focus();
     }
 
-    function convertToCSV() {
+    function flattenObject(obj, prefix = '') {
+        return Object.keys(obj).reduce((acc, k) => {
+            const pre = prefix.length ? prefix + '.' : '';
+            if (typeof obj[k] === 'object' && obj[k] !== null && !Array.isArray(obj[k])) {
+                Object.assign(acc, flattenObject(obj[k], pre + k));
+            } else {
+                acc[pre + k] = obj[k];
+            }
+            return acc;
+        }, {});
+    }
+
+    function processConversion() {
+        errorMsg.style.display = 'none';
         const input = jsonInput.value.trim();
         if (!input) return;
 
         try {
-            const json = JSON.parse(input);
-            const array = Array.isArray(json) ? json : [json];
+            const rawJson = JSON.parse(input);
+            const array = Array.isArray(rawJson) ? rawJson : [rawJson];
             if (array.length === 0) return;
 
-            const headers = Object.keys(array[0]);
-            const csvRows = [];
-            csvRows.push(headers.join(','));
+            // 1. Flatten all objects
+            const flattenedArray = array.map(item => flattenObject(item));
 
-            for (const row of array) {
-                const values = headers.map(header => {
-                    const val = row[header] === null || row[header] === undefined ? '' : row[header];
-                    const escaped = ('' + val).replace(/"/g, '""');
-                    return `"${escaped}"`;
-                });
-                csvRows.push(values.join(','));
+            // 2. Collect all unique headers
+            const headerSet = new Set();
+            flattenedArray.forEach(obj => Object.keys(obj).forEach(k => headerSet.add(k)));
+            const headers = Array.from(headerSet);
+
+            // 3. RFC 4180 Escaping Logic
+            const escape = (val) => {
+                if (val === null || val === undefined) return '""';
+                let str = String(val);
+                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                    str = '"' + str.replace(/"/g, '""') + '"';
+                }
+                return str;
+            };
+
+            const csvRows = [];
+            csvRows.push(headers.map(h => escape(h)).join(','));
+
+            for (const row of flattenedArray) {
+                const line = headers.map(h => escape(row[h] || ''));
+                csvRows.push(line.join(','));
             }
 
             csvOutput.value = csvRows.join('\n');
             resultArea.classList.add('active');
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+
         } catch (e) {
-            alert('Invalid JSON format.');
+            errorMsg.style.display = 'block';
         }
     }
 
@@ -259,25 +297,23 @@
         try {
             await navigator.clipboard.writeText(csvOutput.value);
             const btn = event.target;
-            const originalText = btn.innerText;
+            const original = btn.innerText;
             btn.innerText = 'Copied!';
-            setTimeout(() => btn.innerText = originalText, 1500);
-        } catch (err) {
-            console.error('Failed to copy');
-        }
+            setTimeout(() => btn.innerText = original, 1500);
+        } catch (err) { console.error(err); }
     }
 
     function downloadCSV() {
         const csv = csvOutput.value;
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url = window.URL.createObjectURL(blob);
+        // Excel文字化け対策: UTF-8 BOM付与
+        const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+        const blob = new Blob([bom, csv], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
         a.download = 'data.csv';
-        document.body.appendChild(a);
         a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
+        URL.revokeObjectURL(url);
     }
 
     function showModal() { document.getElementById('modal').style.display = 'flex'; }
