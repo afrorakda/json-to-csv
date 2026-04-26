@@ -19,7 +19,10 @@
         }
 
         /* 憲法遵守: 角丸15px / iOS Safari対策 */
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
+        
+        /* 入力欄のみテキスト操作許可 */
+        textarea { -webkit-user-select: text; user-select: text; }
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -149,6 +152,7 @@
             padding: 12px; border-radius: var(--radius); font-weight: 800; font-size: 0.8rem; cursor: pointer;
         }
 
+        /* 鉄壁フッター（聖域） */
         footer { text-align: center; font-size: 0.75rem; color: #999; line-height: 1.6; font-weight: 700; margin-top: 15px; }
         footer a { color: inherit; text-decoration: underline; }
 
@@ -195,21 +199,21 @@
     </div>
 
     <div class="footer-btns">
-        <a href="https://ko-fi.com/afrorakda" target="_blank" class="kofi-btn">☕️ buy me a coffee</a>
+        <a id="kofi-link" href="https://ko-fi.com/afrorakda" target="_blank" class="kofi-btn">☕️ buy me a coffee</a>
         <button class="home-btn" onclick="showModal()">Add to Home Screen</button>
     </div>
 
     <footer>
-        No login / No tracking / No ads / Browser only<br>
-        <a href="https://afrorakda.com/privacy/">Privacy Policy</a> / afrorakda © 2026
+        <span id="footer-text">No login / No tracking / No ads / Browser only</span><br>
+        <a id="privacy-link" href="https://afrorakda.com/privacy/">Privacy Policy</a> / <span id="copyright">afrorakda © 2026</span>
     </footer>
 </div>
 
 <div id="modal" onclick="hideModal()">
     <div class="modal-content" onclick="event.stopPropagation()">
         <span class="close-x" onclick="hideModal()">×</span>
-        <h3 style="margin-bottom: 15px; font-weight: 900;">📱 Install</h3>
-        <p style="font-size: 0.9rem; line-height: 1.6; font-weight: 700;">
+        <h3 id="modal-title" style="margin-bottom: 15px; font-weight: 900;">📱 Install</h3>
+        <p id="modal-body" style="font-size: 0.9rem; line-height: 1.6; font-weight: 700;">
             🍏 <strong>iPhone:</strong><br>Share > Add to Home Screen<br><br>
             🤖 <strong>Android:</strong><br>Menu (⋮) > Add to Home Screen
         </p>
@@ -235,6 +239,7 @@
         jsonInput.focus();
     }
 
+    // 外部参照: 標準的なネスト解除（フラット化）アルゴリズム
     function flattenObject(obj, prefix = '') {
         return Object.keys(obj).reduce((acc, k) => {
             const pre = prefix.length ? prefix + '.' : '';
@@ -281,7 +286,7 @@
 
             csvOutput.value = csvRows.join('\n');
             resultArea.classList.add('active');
-            window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            window.scrollTo({ top: resultArea.offsetTop - 20, behavior: 'smooth' });
 
         } catch (e) {
             errorMsg.style.display = 'block';
@@ -312,6 +317,24 @@
 
     function showModal() { document.getElementById('modal').style.display = 'flex'; }
     function hideModal() { document.getElementById('modal').style.display = 'none'; }
+
+    // 鉄壁ロジック: 削除厳禁・聖域
+    async function loadFooter() {
+        try {
+            const response = await fetch('footer.json');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.footerText) document.getElementById('footer-text').innerText = data.footerText;
+                if (data.privacyLink) document.getElementById('privacy-link').href = data.privacyLink;
+                if (data.copyright) document.getElementById('copyright').innerText = data.copyright;
+                if (data.kofiText) document.getElementById('kofi-link').innerText = data.kofiText;
+                if (data.modalTitle) document.getElementById('modal-title').innerText = data.modalTitle;
+                if (data.modalBody) document.getElementById('modal-body').innerHTML = data.modalBody;
+            }
+        } catch (e) { console.log("Static footer active."); }
+    }
+
+    loadFooter();
 </script>
 
 </body>
